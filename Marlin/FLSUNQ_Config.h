@@ -32,9 +32,9 @@
 /*_______________________1___________________________*/
 //==================== Hardware =====================//
 /*-------------Motherboard/Printer-(1 CHOICE)-------*/
-#define QQSP                         // (Default_QQS) env = flsun_hispeedv1
+//#define QQSP                       // (Default_QQS) env = flsun_hispeedv1
                                      // env:flsun_hispeedv1 (GD32F303VE6) 
-//#define Q5                         // env = mks_robin_nano_v1v2 or (Q5_2021) env = mks_robin_nano_v1_3_f4 (#define TEMP_TIMER  5)
+#define Q5                          // env = mks_robin_nano_v1v2 or (Q5_2021) env = mks_robin_nano_v1_3_f4 (#define TEMP_TIMER  5)
                                      // for Q5_2021 = uncomment/comment your MoBo in configuration.h (Line105)
 //#define SR_MKS                     // env = mks_robin_nano_v3_usb_flash_drive_msc or SR_2022 env = mks_robin_nano_v3_1_usb_flash_drive_msc
                                      // for SR_2022 = uncomment/comment your MoBo in configuration.h (Line110)
@@ -178,7 +178,7 @@
       * ===============================
       */
 
-#define DELTA_HOME_TO_SAFE_ZONE         // Option to move down after homing to a height where XYZ movement is unconstrained.
+//#define DELTA_HOME_TO_SAFE_ZONE         // Option to move down after homing to a height where XYZ movement is unconstrained.
 
 #define PREHEAT_BEFORE_PROBING           //(P) (Default) Run a PreHeat bed at 60°C only.
 //#define PREHEAT_BEFORE_LEVELING        // Option to preheat (nozzle and bed) before levelling (H80/B60).
