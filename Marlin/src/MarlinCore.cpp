@@ -79,9 +79,11 @@
     #include "lcd/dwin/creality/dwin.h"
   #elif ENABLED(DWIN_CREALITY_LCD_JYERSUI)
     #include "lcd/dwin/jyersui/dwin.h"
-  #elif ENABLED(SOVOL_SV06_RTS)
-    #include "lcd/sovol_rts/sovol_rts.h"
+  #elif ENABLED(DWIN_LCD_PROUI)
+    #include "lcd/extui/ui_api.h"
   #endif
+#elif ENABLED(SOVOL_SV06_RTS)
+  #include "lcd/sovol_rts/sovol_rts.h"
 #endif
 
 #if HAS_ETHERNET
@@ -371,7 +373,9 @@ bool Marlin::printingIsPaused() {
 }
 
 void Marlin::startOrResumeJob() {
-  if (!printingIsPaused()) {
+  // Reset per-job state only for a new job. A running timer means the job is
+  // already underway (e.g., M24 after M125 or MarlinUI::resume_print resumed it).
+  if (!print_job_timer.isRunning() && !printingIsPaused()) {
     TERN_(GCODE_REPEAT_MARKERS, repeat.reset());
     TERN_(CANCEL_OBJECTS, cancelable.reset());
     TERN_(LCD_SHOW_E_TOTAL, motion.e_move_accumulator = 0);
@@ -440,8 +444,11 @@ void Marlin::manage_inactivity(const bool no_stepper_sleep/*=false*/) {
   const bool do_reset_timeout = no_stepper_sleep
                                || TERN0(PAUSE_PARK_NO_STEPPER_TIMEOUT, did_pause_print);
 
-  // Reset both the M18/M84 activity timeout and the M85 max 'kill' timeout
-  if (do_reset_timeout) gcode.reset_stepper_timeout(ms);
+  // Reset both the M18/M84 activity timeout and the M85 max 'kill' timeout.
+  // Resonance blocks bypass the planner queue, so keep the stepper timeout
+  // (and M85 max-inactive kill) from firing while a test is running.
+  if (do_reset_timeout || TERN0(RESONANCE_TEST, rtg.isActive()))
+    gcode.reset_stepper_timeout(ms);
 
   if (gcode.stepper_max_timed_out(ms)) {
     SERIAL_ERROR_START();
@@ -968,6 +975,9 @@ void Marlin::minkill(const bool steppers_off/*=false*/) {
 
   TERN_(HAS_SUICIDE, suicide());
 
+  // The ESP32 Interrupt Watchdog resets the chip unless interrupts run on this core
+  TERN_(ARDUINO_ARCH_ESP32, sei());
+
   #if ANY(HAS_KILL, SOFT_RESET_ON_KILL)
 
     // Wait for both KILL and ENC to be released
@@ -999,7 +1009,7 @@ void Marlin::stop() {
   print_job_timer.stop();
 
   #if ANY(PROBING_FANS_OFF, ADVANCED_PAUSE_FANS_PAUSE)
-    thermalManager.set_fans_paused(false); // Un-pause fans for safety
+    Fan::all_resume(); // Un-pause fans for safety
   #endif
 
   if (!isStopped()) {
@@ -1165,6 +1175,7 @@ inline void tmc_standby_setup() {
  *  - Apply Password Lock - Hold for Authentication
  *  - Open Touch Screen Calibration screen, if not calibrated
  *  - Set Marlin to RUNNING State
+ *  - Stop print timer
  */
 void setup() {
   #ifdef FASTIO_INIT
@@ -1381,6 +1392,12 @@ void setup() {
       SETUP_RUN(card.mount());        // Mount media with settings before first_load
     #endif
   #endif
+
+  //#if ENABLED(PRINTJOB_TIMER_AUTOSTART)
+  //  // Stop timer and set welcome message
+  //  if (TERN1(POWER_LOSS_RECOVERY, !recovery.check()))
+  //    thermalManager.auto_job_check_timer(false, true);
+  //#endif
 
   // Prepare some LCDs to display early
   #if HAS_EARLY_LCD_SETTINGS
@@ -1660,6 +1677,8 @@ void setup() {
 
   #if ENABLED(DWIN_CREALITY_LCD)
     SETUP_RUN(dwinInitScreen());
+  #elif ENABLED(DWIN_LCD_PROUI)
+    SETUP_RUN(ExtUI::onStartup());    // ProUI MarlinUI::init_lcd only does the handshake
   #elif ENABLED(SOVOL_SV06_RTS)
     SETUP_RUN(rts.init());
   #endif
