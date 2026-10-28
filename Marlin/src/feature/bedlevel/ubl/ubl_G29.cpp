@@ -1146,22 +1146,45 @@ void set_message_with_feedback(FSTR_P const fstr) {
       safe_delay(50);
     #endif
 
-    do {
-      // Strict left-to-right (X), top-to-bottom (Y) traversal of the unedited points
-      location.invalidate();
-      for (int8_t py = 0; py < GRID_MAX_POINTS_Y && !location.valid(); py++)
-        for (int8_t px = 0; px < GRID_MAX_POINTS_X && !location.valid(); px++) {
-          if (done_flags.marked(px, py)) continue;        // Already edited
-          const xy_pos_t cpos = { get_mesh_x(px), get_mesh_y(py) };
-          if (!motion.can_reach(cpos)) {                  // Skip unreachable points
-            done_flags.mark(px, py);
-            continue;
-          }
-          location.pos.x = px;                         // Found: next unedited, reachable point
-          location.pos.y = py;
-        }
+    // Edit order: screen rows top to bottom, each row left to right,
+    // skipping points the nozzle cannot reach. The sequence is cyclic:
+    // after the last point (bottom-right) it wraps to the first (top-left).
+    struct SeqPoint { int8_t x, y; };
+    SeqPoint seq[GRID_MAX_POINTS];
+    uint8_t n_seq = 0;
+    for (int8_t py = GRID_MAX_POINTS_Y - 1; py >= 0; --py)
+      for (int8_t px = 0; px < GRID_MAX_POINTS_X; ++px)
+        if (motion.can_reach({ get_mesh_x(px), get_mesh_y(py) }))
+          seq[n_seq++] = { px, py };
+    if (!n_seq) {
+      SERIAL_ECHOLNPGM("G29 P4: No reachable mesh points");
+      restore_ubl_active_state();
+      return;
+    }
 
-      if (lpos.x < 0) break;                              // Stop when there are no more reachable points
+    // Start at the selected point (G29 P4 X Y) when given, else at the
+    // first point of the sequence (top-left of the map)
+    uint8_t seq_idx = 0;
+    if (parser.seen('X') || parser.seen('Y')) {
+      const mesh_index_pair mp = find_closest_mesh_point_of_type(CLOSEST, pos);
+      for (uint8_t k = 0; mp.valid() && k < n_seq; ++k)
+        if (seq[k].x == mp.pos.x && seq[k].y == mp.pos.y) { seq_idx = k; break; }
+    }
+
+    do {
+      // Next unedited point in the cyclic edit order
+      location.invalidate();
+      for (uint8_t k = 0; k < n_seq; ++k) {
+        const uint8_t i = (seq_idx + k) % n_seq;
+        if (!done_flags.marked(seq[i].x, seq[i].y)) {    // Found: next unedited point
+          location.pos.x = seq[i].x;
+          location.pos.y = seq[i].y;
+          seq_idx = (i + 1) % n_seq;                     // Resume after it on the next loop
+          break;
+        }
+      }
+
+      if (lpos.x < 0) break;                              // All reachable points edited
 
       done_flags.mark(lpos);                              // Mark this location as 'adjusted' so a new
                                                           // location is used on the next loop
@@ -1235,7 +1258,17 @@ void set_message_with_feedback(FSTR_P const fstr) {
     if (do_ubl_mesh_map) display_map(param.T_map_type);
     restore_ubl_active_state();
 
-    motion.blocking_move_xy_z(pos, Z_TWEEN_SAFE_CLEARANCE);
+    // After a completed pass (all reachable points edited) leave the nozzle
+    // at the first point of the sequence (top-left) instead of the start position
+    xyz_pos_t end_pos = pos;
+    if (!fine_tune_abort) {
+      bool all_done = true;
+      for (uint8_t k = 0; k < n_seq; ++k)
+        if (!done_flags.marked(seq[k].x, seq[k].y)) { all_done = false; break; }
+      if (all_done)
+        end_pos.set(get_mesh_x(seq[0].x), get_mesh_y(seq[0].y), end_pos.z);
+    }
+    motion.blocking_move_xy_z(end_pos, Z_TWEEN_SAFE_CLEARANCE);
 
     LCD_MESSAGE(MSG_UBL_DONE_EDITING_MESH);
     SERIAL_ECHOLNPGM("Done Editing Mesh");
