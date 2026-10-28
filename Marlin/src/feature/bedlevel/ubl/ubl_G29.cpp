@@ -1204,7 +1204,8 @@ void set_message_with_feedback(FSTR_P const fstr) {
       mesh_point_editing = false;
       motion.set_soft_endstop_loose(false);
 
-      if (fine_tune_abort) {                              // "X" pressed: discard this point, back to the map
+      if (fine_tune_abort) {                              // "X" pressed: save this point, back to the map
+        z_values[lpos.x][lpos.y] = new_z;                 // Save the updated Z value
         lcd_map_control = true;                           // ... so the function ends on the map screen
         break;
       }
