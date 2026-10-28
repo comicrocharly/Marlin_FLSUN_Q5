@@ -308,6 +308,7 @@ namespace LanguageNarrow_en {
   LSTR MSG_UBL_BED_TEMP_CUSTOM            = _UxGT("Bed Temp");
   LSTR MSG_UBL_SET_TEMP_HOTEND            = _UxGT("Hotend Temp");
   LSTR MSG_UBL_HOTEND_TEMP_CUSTOM         = _UxGT("Hotend Temp");
+  LSTR MSG_MATERIAL                       = _UxGT("Material");
   LSTR MSG_UBL_EDIT_CUSTOM_MESH           = _UxGT("Edit Custom Mesh");
   LSTR MSG_UBL_FINE_TUNE_MESH             = _UxGT("Fine Tuning Mesh");
   LSTR MSG_UBL_DONE_EDITING_MESH          = _UxGT("Done Editing Mesh");
