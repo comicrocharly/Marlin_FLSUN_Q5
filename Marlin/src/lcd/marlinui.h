@@ -770,6 +770,13 @@ public:
       static void ubl_plot(const uint8_t x_plot, const uint8_t y_plot);
       static void ubl_mesh_edit_start(const float initial);
       static float ubl_mesh_value();
+      #if HAS_GRAPHICAL_TFT
+        // UBL per-point fine-tune "X" (exit) button, polled for a quick tap.
+        // (The BUTTON touch control needs a ~200 ms hold to fire.)
+        static uint16_t ubl_exit_x, ubl_exit_y, ubl_exit_w, ubl_exit_h;
+        static void set_ubl_exit_rect(const uint16_t x, const uint16_t y, const uint16_t w, const uint16_t h);
+        static bool is_ubl_exit_touched();
+      #endif
     #endif
 
     static void draw_select_screen_prompt(FSTR_P const fpre, const char * const string=nullptr, FSTR_P const fsuf=nullptr);

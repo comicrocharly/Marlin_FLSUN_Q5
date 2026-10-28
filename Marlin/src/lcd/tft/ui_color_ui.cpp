@@ -870,16 +870,34 @@ void MenuEditItemBase::draw_edit_screen(FSTR_P const ftpl, const char * const va
   }
 #endif
 
+// Rectangle of the UBL fine-tune "X" exit button, polled by fine_tune_mesh()
+// for a quick tap (a BUTTON touch control only fires after a ~200 ms hold).
+#if ENABLED(TOUCH_SCREEN)
+uint16_t MarlinUI::ubl_exit_x, MarlinUI::ubl_exit_y, MarlinUI::ubl_exit_w, MarlinUI::ubl_exit_h;
+
+void MarlinUI::set_ubl_exit_rect(const uint16_t x, const uint16_t y, const uint16_t w, const uint16_t h) {
+  ubl_exit_x = x; ubl_exit_y = y; ubl_exit_w = w; ubl_exit_h = h;
+}
+
+bool MarlinUI::is_ubl_exit_touched() {
+  return ubl_exit_x && touch.is_touched_in(ubl_exit_x, ubl_exit_y, ubl_exit_w, ubl_exit_h);
+}
+#else
+  void MarlinUI::set_ubl_exit_rect(const uint16_t, const uint16_t, const uint16_t, const uint16_t) {}
+  bool MarlinUI::is_ubl_exit_touched() { return false; }
+#endif
+
 // Bottom row: 123 (keypad toggle), - and + (unless shown elsewhere), OK
 void TFT::draw_edit_screen_buttons(const bool can_keypad/*=false*/, const bool no_plus_minus/*=false*/) {
   #if ENABLED(TOUCH_SCREEN)
     #if ENABLED(AUTO_BED_LEVELING_UBL)
       if (bedlevel.mesh_point_editing) {
-        // UBL per-point edit, classic layout: [ - ] [ check ] [ + ], with [ X ] abort to map in the bottom-right corner
-        add_control( 24, BUTTON_ROW_Y, DECREASE, imgDecrease);
-        add_control(104, BUTTON_ROW_Y, CLICK,    imgConfirm);
-        add_control(184, BUTTON_ROW_Y, INCREASE, imgIncrease);
-        drawSimpleBtn("X", TFT_WIDTH - X_MARGIN - BTN_WIDTH, BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_RED, COLOR_WHITE, BTN_FILLED, false, BUTTON, intptr_t(&unified_bed_leveling::abort_fine_tune));
+        // UBL per-point edit: [-][+] on the left, [OK] next point (center), [X] abort to map (bottom-right corner)
+        drawSimpleBtn("-", X_MARGIN,                          BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, DECREASE, stepSize);
+        drawSimpleBtn("+", X_MARGIN + BTN_WIDTH + X_MARGIN,   BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, INCREASE, stepSize);
+        drawSimpleBtn("OK", (TFT_WIDTH - BTN_WIDTH) / 2,      BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_VIVID_GREEN, COLOR_BLACK, BTN_FILLED, true, CLICK, intptr_t(okClicked));
+        drawSimpleBtn("X", TFT_WIDTH - X_MARGIN - BTN_WIDTH,  BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_RED, COLOR_WHITE, BTN_FILLED, false, BUTTON, intptr_t(&unified_bed_leveling::abort_fine_tune));
+        ui.set_ubl_exit_rect(TFT_WIDTH - X_MARGIN - BTN_WIDTH, BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT);
         return;
       }
     #endif

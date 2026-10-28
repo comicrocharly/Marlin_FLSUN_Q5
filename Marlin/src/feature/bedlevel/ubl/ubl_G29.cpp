@@ -1196,6 +1196,7 @@ void set_message_with_feedback(FSTR_P const fstr) {
       do {
         marlin.idle_no_sleep();
         new_z = ui.ubl_mesh_value();
+        TERN_(HAS_GRAPHICAL_TFT, if (ui.is_ubl_exit_touched()) fine_tune_abort = true); // Tap "X" to abort
         TERN_(UBL_MESH_EDIT_MOVES_Z, motion.blocking_move_z(h_offset + new_z)); // Move the nozzle as the point is edited
         SERIAL_FLUSH();                                   // Prevent host M105 buffer overrun.
       } while (!ui.button_pressed() && !fine_tune_abort);

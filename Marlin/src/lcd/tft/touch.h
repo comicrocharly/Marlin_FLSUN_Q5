@@ -123,6 +123,15 @@ class Touch {
       }
       return false;
     }
+    // True while the finger is inside the given rectangle.
+    // Unlike control dispatch this ignores the hold debounce, so a short
+    // tap registers -- used for regions like the UBL "X" exit button.
+    static bool is_touched_in(const uint16_t rx, const uint16_t ry, const uint16_t rw, const uint16_t rh) {
+      const int16_t tx = Touch::x, ty = Touch::y;
+      return (tx != 0 || ty != 0) &&
+             tx >= (int16_t)rx && tx <= (int16_t)(rx + rw) &&
+             ty >= (int16_t)ry && ty <= (int16_t)(ry + rh);
+    }
     static void disable() { enabled = false; }
     static void enable() { enabled = true; }
     #if HAS_DISPLAY_SLEEP
