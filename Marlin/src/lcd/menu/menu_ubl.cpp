@@ -95,6 +95,26 @@
 
 #endif
 
+// --------------------------------------------------------------------
+// Dynamic label for the "Active" storage-slot row. The active slot is the
+// material whose mesh is currently loaded (ubl_storage_slot), so the label
+// shows "<slot>. - <material>" to tell the operator which material to
+// preheat before printing.
+// --------------------------------------------------------------------
+#if ALL(HAS_MESH_STORAGE, HAS_PREHEAT)
+  #define _MAT_NAME(M) PREHEAT_##M##_LABEL,
+  static const char *const _material_names[PREHEAT_COUNT] = { REPEAT_1(PREHEAT_COUNT, _MAT_NAME) };
+  #undef _MAT_NAME
+
+  static void _build_active_slot_label(char * const buf, const size_t len) {
+    const int8_t slot = ubl_storage_slot;
+    if (slot >= 1 && slot <= PREHEAT_COUNT)
+      snprintf(buf, len, "%d. - %s", (int)slot, _material_names[slot - 1]);
+    else
+      snprintf(buf, len, "0. - Active");
+  }
+#endif
+
 static int16_t custom_hotend_temp = 150,
                side_points = 3,
                ubl_fillin_amount = 5,
@@ -424,6 +444,8 @@ void _lcd_ubl_build_mesh() {
     _LOAD_SLOT_FN(0)
     REPEAT_1(PREHEAT_COUNT, _LOAD_SLOT_FN)
     #undef _LOAD_SLOT_FN
+    // Reload the currently-active slot (the one the "Active" row points to)
+    static void _lcd_ubl_load_active_slot() { _lcd_ubl_load_slot_cmd(ubl_storage_slot); }
     #define _LOAD_SLOT_ITEM(M) \
       ACTION_ITEM_F(F(STRINGIFY(M) ". - " PREHEAT_##M##_LABEL), _lcd_ubl_load_slot_##M);
   #endif // HAS_PREHEAT
@@ -446,7 +468,9 @@ void _lcd_ubl_build_mesh() {
       STATIC_ITEM(MSG_UBL_NO_STORAGE);
     else {
       #if HAS_PREHEAT
-        ACTION_ITEM_F(F("0. - Active"), _lcd_ubl_load_slot_0);
+        static char active_slot_buf[20];
+        _build_active_slot_label(active_slot_buf, sizeof(active_slot_buf));
+        MENU_ITEM_N_S_F(function, 0, active_slot_buf, F("$"), _lcd_ubl_load_active_slot);
         REPEAT_1(PREHEAT_COUNT, _LOAD_SLOT_ITEM)
         EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, a - 1);
         ACTION_ITEM(MSG_UBL_SAVE_MESH, _lcd_ubl_save_mesh_cmd);
@@ -709,7 +733,7 @@ void _menu_ubl_tools() {
       EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, total_slots);
     #endif
 
-    ACTION_ITEM(MSG_UBL_MESH_WIZARD, _lcd_ubl_mesh_wizard);
+    ACTION_ITEM(MSG_UBL_MESH_START, _lcd_ubl_mesh_wizard);
 
     #if ENABLED(G26_MESH_VALIDATION)
       SUBMENU(MSG_UBL_VALIDATE_MESH_MENU, _lcd_ubl_validate_mesh);

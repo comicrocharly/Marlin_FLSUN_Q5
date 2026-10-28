@@ -624,6 +624,7 @@ namespace LanguageNarrow_en {
   LSTR MSG_UBL_TILTING_GRID               = _UxGT("Tilting Grid Size");
   LSTR MSG_UBL_MESH_TILTED                = _UxGT("Mesh Tilted");
   LSTR MSG_UBL_MESH_WIZARD                = _UxGT("UBL Mesh Wizard");
+  LSTR MSG_UBL_MESH_START                 = _UxGT("UBL Mesh Start");
   LSTR MSG_UBL_MESH_FILLED                = _UxGT("Missing Points Filled");
   LSTR MSG_UBL_MESH_INVALID               = _UxGT("Invalid Mesh");
   LSTR MSG_UBL_INVALID_SLOT               = _UxGT("First Select a Mesh Slot");
