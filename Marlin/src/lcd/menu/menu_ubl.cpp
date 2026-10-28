@@ -43,6 +43,57 @@
   static int16_t ubl_storage_slot = 0;
 #endif
 
+#if HAS_PREHEAT
+  // --------------------------------------------------------------------
+  // Per-profile mesh slots: each preheat profile N (0-based) is bound to
+  // a dedicated UBL mesh slot N+1. Slot 0 remains the "active" mesh that
+  // is auto-loaded at boot. Selecting a profile for fine-tuning (G29 P4)
+  // or probing (G29 P1) makes the firmware:
+  //   1. preheat bed + hotend to the profile temperatures,
+  //   2. load the mesh saved for that material   (G29 L<slot>),
+  //   3. run the mesh operation,
+  //   4. save the result back to the material slot (G29 S<slot>).
+  // --------------------------------------------------------------------
+  static void _lcd_ubl_mesh_edit_cmd(const uint8_t profile) {
+    const int8_t slot = (int8_t)profile + 1;   // profile N -> mesh slot N+1
+    char cmd[64];
+    #if HAS_HEATED_BED
+      int n = snprintf(cmd, sizeof(cmd), "M190I%d\nM109I%d\nG29L%d\nG29P4RT\nG29S%d\nM104S0\nM140S0",
+                       profile, profile, slot, slot);
+    #else
+      int n = snprintf(cmd, sizeof(cmd), "M109I%d\nG29L%d\nG29P4RT\nG29S%d\nM104S0\nM140S0",
+                       profile, slot, slot);
+    #endif
+    UNUSED(n);
+    queue.inject(cmd);
+  }
+
+  static void _lcd_ubl_mesh_build_cmd(const uint8_t profile) {
+    const int8_t slot = (int8_t)profile + 1;   // profile N -> mesh slot N+1
+    char cmd[64];
+    #if HAS_HEATED_BED
+      int n = snprintf(cmd, sizeof(cmd), "G28\nM190I%d\nM109I%d\nG29P1\nG29S%d\nM104S0\nM140S0",
+                       profile, profile, slot);
+    #else
+      int n = snprintf(cmd, sizeof(cmd), "G28\nM109I%d\nG29P1\nG29S%d\nM104S0\nM140S0",
+                       profile, slot);
+    #endif
+    UNUSED(n);
+    queue.inject(cmd);
+  }
+
+  // One menu item per preheat profile, wired to the matching command.
+  #define FINE_TUNE_MESH_ITEM(M) ACTION_ITEM_F(ui.get_preheat_label(M), _lcd_ubl_mesh_edit_##M);
+  #define BUILD_MESH_ITEM(M)     ACTION_ITEM_F(ui.get_preheat_label(M), _lcd_ubl_mesh_build_##M);
+
+  #define _GEN_MESH_EDIT_FN(M)   static void _lcd_ubl_mesh_edit_##M()   { _lcd_ubl_mesh_edit_cmd(M); }
+  #define _GEN_MESH_BUILD_FN(M)  static void _lcd_ubl_mesh_build_##M() { _lcd_ubl_mesh_build_cmd(M); }
+  REPEAT(PREHEAT_COUNT, _GEN_MESH_EDIT_FN)
+  REPEAT(PREHEAT_COUNT, _GEN_MESH_BUILD_FN)
+  #undef _GEN_MESH_EDIT_FN
+  #undef _GEN_MESH_BUILD_FN
+#endif
+
 static int16_t custom_hotend_temp = 150,
                side_points = 3,
                ubl_fillin_amount = 5,
@@ -179,16 +230,7 @@ void _lcd_ubl_edit_mesh() {
   GCODES_ITEM(MSG_UBL_FINE_TUNE_ALL, F("G29P4RT"));
   GCODES_ITEM(MSG_UBL_FINE_TUNE_CLOSEST, F("G29P4T"));
   #if HAS_PREHEAT
-    #define PREHEAT_BED_GCODE(M) TERN(HAS_HEATED_BED, "M190I" STRINGIFY(M) "\n", "")
-    #define FINE_TUNE_MESH_GCODE_ITEM(M) GCODES_ITEM_f(ui.get_preheat_label(M), MSG_UBL_FINE_TUNE_M, \
-      F( \
-        PREHEAT_BED_GCODE(M) \
-        "M109I" STRINGIFY(M) "\n" \
-        "G29P4RT\n" \
-        "M104S0\n" \
-        "M140S0" \
-      ) );
-    REPEAT(PREHEAT_COUNT, FINE_TUNE_MESH_GCODE_ITEM)
+    REPEAT(PREHEAT_COUNT, FINE_TUNE_MESH_ITEM)
   #endif // HAS_PREHEAT
   SUBMENU(MSG_UBL_MESH_HEIGHT_ADJUST, _menu_ubl_height_adjust);
   ACTION_ITEM(MSG_INFO_SCREEN, ui.return_to_status);
@@ -318,17 +360,7 @@ void _lcd_ubl_build_mesh() {
   START_MENU();
   BACK_ITEM(MSG_UBL_TOOLS);
   #if HAS_PREHEAT
-    #define PREHEAT_BED_GCODE(M) TERN(HAS_HEATED_BED, "M190I" STRINGIFY(M) "\n", "")
-    #define BUILD_MESH_GCODE_ITEM(M) GCODES_ITEM_f(ui.get_preheat_label(M), MSG_UBL_BUILD_MESH_M, \
-      F( \
-        "G28\n" \
-        PREHEAT_BED_GCODE(M) \
-        "M109I" STRINGIFY(M) "\n" \
-        "G29P1\n" \
-        "M104S0\n" \
-        "M140S0" \
-      ) );
-    REPEAT(PREHEAT_COUNT, BUILD_MESH_GCODE_ITEM)
+    REPEAT(PREHEAT_COUNT, BUILD_MESH_ITEM)
   #endif // HAS_PREHEAT
 
   SUBMENU(MSG_UBL_BUILD_CUSTOM_MESH, _lcd_ubl_custom_mesh);
