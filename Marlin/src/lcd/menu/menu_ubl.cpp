@@ -704,14 +704,6 @@ void _menu_ubl_tools() {
       SUBMENU(MSG_MATERIAL, _menu_wizard_material);
     #endif
 
-    #if HAS_HOTEND
-      EDIT_ITEM(int3, MSG_UBL_HOTEND_TEMP_CUSTOM, &custom_hotend_temp, HEATER_0_MINTEMP + 20, thermalManager.hotend_max_target(0));
-    #endif
-
-    #if HAS_HEATED_BED
-      EDIT_ITEM(int3, MSG_UBL_BED_TEMP_CUSTOM, &custom_bed_temp, BED_MINTEMP + 20, BED_MAX_TARGET);
-    #endif
-
     #if HAS_MESH_STORAGE
       const int16_t total_slots = settings.calc_num_meshes();
       EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, total_slots);
