@@ -227,8 +227,6 @@ void _menu_ubl_height_adjust() {
 void _lcd_ubl_edit_mesh() {
   START_MENU();
   BACK_ITEM(MSG_UBL_TOOLS);
-  GCODES_ITEM(MSG_UBL_FINE_TUNE_ALL, F("G29P4RT"));
-  GCODES_ITEM(MSG_UBL_FINE_TUNE_CLOSEST, F("G29P4T"));
   #if HAS_PREHEAT
     REPEAT(PREHEAT_COUNT, FINE_TUNE_MESH_ITEM)
   #endif // HAS_PREHEAT
@@ -363,7 +361,6 @@ void _lcd_ubl_build_mesh() {
     REPEAT(PREHEAT_COUNT, BUILD_MESH_ITEM)
   #endif // HAS_PREHEAT
 
-  SUBMENU(MSG_UBL_BUILD_CUSTOM_MESH, _lcd_ubl_custom_mesh);
   GCODES_ITEM(MSG_UBL_BUILD_COLD_MESH, F("G29NP1"));
   SUBMENU(MSG_UBL_FILLIN_MESH, _menu_ubl_fillin);
   GCODES_ITEM(MSG_UBL_CONTINUE_MESH, F("G29P1C"));
@@ -384,12 +381,34 @@ void _lcd_ubl_build_mesh() {
   void _lcd_ubl_load_mesh_cmd() { _lcd_ubl_load_save_cmd('L', GET_TEXT_F(MSG_MESH_LOADED)); }
   void _lcd_ubl_save_mesh_cmd() { _lcd_ubl_load_save_cmd('S', GET_TEXT_F(MSG_MESH_SAVED)); }
 
+  #if HAS_PREHEAT
+    /**
+     * Material-bound mesh slots: preheat profile N owns mesh slot N+1.
+     * The storage menu lists them as "N. - MATERIAL" (tap to load).
+     */
+    inline void _lcd_ubl_load_slot_cmd(const int8_t slot) {
+      gcode.process_subcommands_now(MString<40>{}.setf_P(PSTR("G29L%i\nM117 "), slot).appendf_P(FTOP(GET_TEXT_F(MSG_MESH_LOADED)), slot));
+    }
+    #define _LOAD_SLOT_FN(M) \
+      static void _lcd_ubl_load_slot_##M() { \
+        ubl_storage_slot = M; \
+        _lcd_ubl_load_slot_cmd(M); \
+      }
+    _LOAD_SLOT_FN(0)
+    REPEAT_1(PREHEAT_COUNT, _LOAD_SLOT_FN)
+    #undef _LOAD_SLOT_FN
+    #define _LOAD_SLOT_ITEM(M) \
+      ACTION_ITEM_F(F(STRINGIFY(M) ". - " PREHEAT_##M##_LABEL), _lcd_ubl_load_slot_##M);
+  #endif // HAS_PREHEAT
+
  /**
   * UBL Mesh Storage submenu
   *
   * << Unified Bed Leveling
+  *    0. - Active
+  *    1. - PLA        (one item per material profile, tap to load)
+  *    ...
   *    Memory Slot: ---
-  *    Load Bed Mesh
   *    Save Bed Mesh
   */
   void _lcd_ubl_storage_mesh() {
@@ -399,9 +418,16 @@ void _lcd_ubl_build_mesh() {
     if (!WITHIN(ubl_storage_slot, 0, a - 1))
       STATIC_ITEM(MSG_UBL_NO_STORAGE);
     else {
-      EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, a - 1);
-      ACTION_ITEM(MSG_UBL_LOAD_MESH, _lcd_ubl_load_mesh_cmd);
-      ACTION_ITEM(MSG_UBL_SAVE_MESH, _lcd_ubl_save_mesh_cmd);
+      #if HAS_PREHEAT
+        ACTION_ITEM_F(F("0. - Active"), _lcd_ubl_load_slot_0);
+        REPEAT_1(PREHEAT_COUNT, _LOAD_SLOT_ITEM)
+        EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, a - 1);
+        ACTION_ITEM(MSG_UBL_SAVE_MESH, _lcd_ubl_save_mesh_cmd);
+      #else
+        EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, a - 1);
+        ACTION_ITEM(MSG_UBL_LOAD_MESH, _lcd_ubl_load_mesh_cmd);
+        ACTION_ITEM(MSG_UBL_SAVE_MESH, _lcd_ubl_save_mesh_cmd);
+      #endif // HAS_PREHEAT
     }
     END_MENU();
   }

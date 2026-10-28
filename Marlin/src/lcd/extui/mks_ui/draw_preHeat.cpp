@@ -28,6 +28,7 @@
 #include <lv_conf.h>
 
 #include "../../../module/temperature.h"
+#include "../../../gcode/gcode.h"
 #include "../../../inc/MarlinConfig.h"
 
 static lv_obj_t *scr;
@@ -168,6 +169,10 @@ static void event_handler(lv_obj_t *obj, lv_event_t event) {
       else if (uiCfg.curTempType == 1) {
         TERN_(HAS_HEATED_BED, thermalManager.setTargetBed(PREHEAT_2_TEMP_BED));
       }
+      #if ENABLED(AUTO_BED_LEVELING_UBL)
+        // Auto-load the mesh bound to this material (profile 2 -> mesh slot 2)
+        gcode.process_subcommands_now(F("G29L2"));
+      #endif
       break;
     case ID_P_PLA:
       if (uiCfg.curTempType == 0) {
@@ -176,6 +181,10 @@ static void event_handler(lv_obj_t *obj, lv_event_t event) {
       else if (uiCfg.curTempType == 1) {
         TERN_(HAS_HEATED_BED, thermalManager.setTargetBed(PREHEAT_1_TEMP_BED));
       }
+      #if ENABLED(AUTO_BED_LEVELING_UBL)
+        // Auto-load the mesh bound to this material (profile 1 -> mesh slot 1)
+        gcode.process_subcommands_now(F("G29L1"));
+      #endif
       break;
   }
 }

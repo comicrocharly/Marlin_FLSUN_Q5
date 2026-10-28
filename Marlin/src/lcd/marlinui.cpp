@@ -182,6 +182,10 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
     TERN_(HAS_HEATED_BED,     if (TEST(pmask, PT_BED))     thermalManager.setTargetBed(pre.bed_temp));
     TERN_(HAS_HEATED_CHAMBER, if (TEST(pmask, PT_CHAMBER)) thermalManager.setTargetChamber(pre.chamber_temp));
     TERN_(HAS_FAN,            if (TEST(pmask, PT_FAN))     thermalManager.set_fan_speed(e, pre.fan_speed));
+    #if ENABLED(AUTO_BED_LEVELING_UBL)
+      // Auto-load the mesh bound to this material (profile N -> mesh slot N+1)
+      if (m + 1 < settings.calc_num_meshes()) settings.load_mesh(m + 1);
+    #endif
     #if HAS_FAN
       if (TEST(pmask, PT_FAN)) {
         const uint8_t fan_index = e < (FAN_COUNT) ? e : 0;
