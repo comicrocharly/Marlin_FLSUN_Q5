@@ -873,6 +873,16 @@ void MenuEditItemBase::draw_edit_screen(FSTR_P const ftpl, const char * const va
 // Bottom row: 123 (keypad toggle), - and + (unless shown elsewhere), OK
 void TFT::draw_edit_screen_buttons(const bool can_keypad/*=false*/, const bool no_plus_minus/*=false*/) {
   #if ENABLED(TOUCH_SCREEN)
+    #if ENABLED(AUTO_BED_LEVELING_UBL)
+      if (bedlevel.mesh_point_editing) {
+        // UBL per-point edit: [-][+] on the left, [OK] next point (center), [X] abort to map (bottom-right corner)
+        drawSimpleBtn("-", X_MARGIN,                          BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, DECREASE, stepSize);
+        drawSimpleBtn("+", X_MARGIN + BTN_WIDTH + X_MARGIN,   BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, INCREASE, stepSize);
+        drawSimpleBtn("OK", (TFT_WIDTH - BTN_WIDTH) / 2,      BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_VIVID_GREEN, COLOR_BLACK, BTN_FILLED, true, CLICK, intptr_t(okClicked));
+        drawSimpleBtn("X", TFT_WIDTH - X_MARGIN - BTN_WIDTH,  BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_RED, COLOR_WHITE, BTN_FILLED, false, BUTTON, intptr_t(&unified_bed_leveling::abort_fine_tune));
+        return;
+      }
+    #endif
     if (can_keypad)
       drawSimpleBtn(mode_keypad ? "-/+" : "123", X_MARGIN, BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_BLACK, COLOR_WHITE, BTN_FILLED, false, CALLBACK, intptr_t(switchKeypad));
     if (!no_plus_minus) draw_edit_screen_plus_minus(BUTTON_ROW_Y, can_keypad ? stepSize : 1);

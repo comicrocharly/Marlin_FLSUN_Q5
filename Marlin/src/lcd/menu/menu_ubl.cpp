@@ -178,6 +178,18 @@ void _lcd_ubl_edit_mesh() {
   BACK_ITEM(MSG_UBL_TOOLS);
   GCODES_ITEM(MSG_UBL_FINE_TUNE_ALL, F("G29P4RT"));
   GCODES_ITEM(MSG_UBL_FINE_TUNE_CLOSEST, F("G29P4T"));
+  #if HAS_PREHEAT
+    #define PREHEAT_BED_GCODE(M) TERN(HAS_HEATED_BED, "M190I" STRINGIFY(M) "\n", "")
+    #define FINE_TUNE_MESH_GCODE_ITEM(M) GCODES_ITEM_f(ui.get_preheat_label(M), MSG_UBL_FINE_TUNE_M, \
+      F( \
+        PREHEAT_BED_GCODE(M) \
+        "M109I" STRINGIFY(M) "\n" \
+        "G29P4RT\n" \
+        "M104S0\n" \
+        "M140S0" \
+      ) );
+    REPEAT(PREHEAT_COUNT, FINE_TUNE_MESH_GCODE_ITEM)
+  #endif // HAS_PREHEAT
   SUBMENU(MSG_UBL_MESH_HEIGHT_ADJUST, _menu_ubl_height_adjust);
   ACTION_ITEM(MSG_INFO_SCREEN, ui.return_to_status);
   END_MENU();

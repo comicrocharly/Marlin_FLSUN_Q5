@@ -314,6 +314,7 @@ namespace LanguageNarrow_en {
   LSTR MSG_UBL_BUILD_CUSTOM_MESH          = _UxGT("Build Custom Mesh");
   LSTR MSG_UBL_BUILD_MESH_MENU            = _UxGT("Build Mesh");
   LSTR MSG_UBL_BUILD_MESH_M               = _UxGT("Build Mesh ($)");
+  LSTR MSG_UBL_FINE_TUNE_M                = _UxGT("Fine Tune ($)");
   LSTR MSG_UBL_VALIDATE_MESH_M            = _UxGT("Validate Mesh ($)");
   LSTR MSG_UBL_BUILD_COLD_MESH            = _UxGT("Build Cold Mesh");
   LSTR MSG_UBL_MESH_HEIGHT_ADJUST         = _UxGT("Adjust Mesh Height");

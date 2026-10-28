@@ -137,6 +137,9 @@ public:
 
   #if HAS_MARLINUI_MENU
     static bool lcd_map_control;
+    static volatile bool fine_tune_abort;  // "X" button pressed: abort fine-tune and return to the map screen
+    static bool mesh_point_editing;        // Per-point edit screen is active (shows the "X" button on the TFT)
+    static void abort_fine_tune();
     static void steppers_were_disabled();
   #else
     static void steppers_were_disabled() {}

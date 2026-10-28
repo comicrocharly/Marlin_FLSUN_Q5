@@ -62,6 +62,10 @@
 #if HAS_MARLINUI_MENU
 
   bool unified_bed_leveling::lcd_map_control = false;
+  volatile bool unified_bed_leveling::fine_tune_abort = false;
+  bool unified_bed_leveling::mesh_point_editing = false;
+
+  void unified_bed_leveling::abort_fine_tune() { fine_tune_abort = true; }
 
   void unified_bed_leveling::steppers_were_disabled() {
     if (lcd_map_control) {
@@ -1143,7 +1147,19 @@ void set_message_with_feedback(FSTR_P const fstr) {
     #endif
 
     do {
-      location = find_closest_mesh_point_of_type(SET_IN_BITMAP, pos, false, &done_flags);
+      // Strict left-to-right (X), top-to-bottom (Y) traversal of the unedited points
+      location.invalidate();
+      for (int8_t py = 0; py < GRID_MAX_POINTS_Y && !location.valid(); py++)
+        for (int8_t px = 0; px < GRID_MAX_POINTS_X && !location.valid(); px++) {
+          if (done_flags.marked(px, py)) continue;        // Already edited
+          const xy_pos_t cpos = { get_mesh_x(px), get_mesh_y(py) };
+          if (!motion.can_reach(cpos)) {                  // Skip unreachable points
+            done_flags.mark(px, py);
+            continue;
+          }
+          location.pos.x = px;                         // Found: next unedited, reachable point
+          location.pos.y = py;
+        }
 
       if (lpos.x < 0) break;                              // Stop when there are no more reachable points
 
@@ -1175,14 +1191,22 @@ void set_message_with_feedback(FSTR_P const fstr) {
 
       motion.set_soft_endstop_loose(true);
 
+      fine_tune_abort = false;                            // The "X" button may abort this point
+      mesh_point_editing = true;                          // Show the "X" button on the edit screen
       do {
         marlin.idle_no_sleep();
         new_z = ui.ubl_mesh_value();
         TERN_(UBL_MESH_EDIT_MOVES_Z, motion.blocking_move_z(h_offset + new_z)); // Move the nozzle as the point is edited
         SERIAL_FLUSH();                                   // Prevent host M105 buffer overrun.
-      } while (!ui.button_pressed());
+      } while (!ui.button_pressed() && !fine_tune_abort);
 
+      mesh_point_editing = false;
       motion.set_soft_endstop_loose(false);
+
+      if (fine_tune_abort) {                              // "X" pressed: discard this point, back to the map
+        lcd_map_control = true;                           // ... so the function ends on the map screen
+        break;
+      }
 
       if (!lcd_map_control) ui.return_to_status();        // Just editing a single point? Return to status
 
