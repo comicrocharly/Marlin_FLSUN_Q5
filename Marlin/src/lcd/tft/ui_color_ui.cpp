@@ -875,11 +875,11 @@ void TFT::draw_edit_screen_buttons(const bool can_keypad/*=false*/, const bool n
   #if ENABLED(TOUCH_SCREEN)
     #if ENABLED(AUTO_BED_LEVELING_UBL)
       if (bedlevel.mesh_point_editing) {
-        // UBL per-point edit: [-][+] on the left, [OK] next point (center), [X] abort to map (bottom-right corner)
-        drawSimpleBtn("-", X_MARGIN,                          BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, DECREASE, stepSize);
-        drawSimpleBtn("+", X_MARGIN + BTN_WIDTH + X_MARGIN,   BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_WHITE, COLOR_WHITE, BTN_OUTLINE, false, INCREASE, stepSize);
-        drawSimpleBtn("OK", (TFT_WIDTH - BTN_WIDTH) / 2,      BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_VIVID_GREEN, COLOR_BLACK, BTN_FILLED, true, CLICK, intptr_t(okClicked));
-        drawSimpleBtn("X", TFT_WIDTH - X_MARGIN - BTN_WIDTH,  BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_RED, COLOR_WHITE, BTN_FILLED, false, BUTTON, intptr_t(&unified_bed_leveling::abort_fine_tune));
+        // UBL per-point edit, classic layout: [ - ] [ check ] [ + ], with [ X ] abort to map in the bottom-right corner
+        add_control( 24, BUTTON_ROW_Y, DECREASE, imgDecrease);
+        add_control(104, BUTTON_ROW_Y, CLICK,    imgConfirm);
+        add_control(184, BUTTON_ROW_Y, INCREASE, imgIncrease);
+        drawSimpleBtn("X", TFT_WIDTH - X_MARGIN - BTN_WIDTH, BUTTON_ROW_Y, BTN_WIDTH, BTN_HEIGHT, COLOR_RED, COLOR_WHITE, BTN_FILLED, false, BUTTON, intptr_t(&unified_bed_leveling::abort_fine_tune));
         return;
       }
     #endif
