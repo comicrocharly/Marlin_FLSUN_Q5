@@ -85,6 +85,7 @@
   // One menu item per preheat profile, wired to the matching command.
   #define FINE_TUNE_MESH_ITEM(M) ACTION_ITEM_F(ui.get_preheat_label(M), _lcd_ubl_mesh_edit_##M);
   #define BUILD_MESH_ITEM(M)     ACTION_ITEM_F(ui.get_preheat_label(M), _lcd_ubl_mesh_build_##M);
+  #define WIZARD_MESH_ITEM(M)    ACTION_ITEM_F(ui.get_preheat_label(M), _lcd_ubl_mesh_wizard_##M);
 
   #define _GEN_MESH_EDIT_FN(M)   static void _lcd_ubl_mesh_edit_##M()   { _lcd_ubl_mesh_edit_cmd(M); }
   #define _GEN_MESH_BUILD_FN(M)  static void _lcd_ubl_mesh_build_##M() { _lcd_ubl_mesh_build_cmd(M); }
@@ -92,6 +93,32 @@
   REPEAT(PREHEAT_COUNT, _GEN_MESH_BUILD_FN)
   #undef _GEN_MESH_EDIT_FN
   #undef _GEN_MESH_BUILD_FN
+
+  #if ENABLED(UBL_MESH_WIZARD)
+    // Mesh Wizard per material profile: preheat to the profile temperatures,
+    // build the mesh and store it in the profile's own mesh slot (M+1).
+    #if HAS_HEATED_BED
+      #define _GEN_MESH_WIZARD_FN(M) \
+        static void _lcd_ubl_mesh_wizard_##M() { \
+          TERN_(HAS_MESH_STORAGE, ubl_storage_slot = M + 1;) \
+          MString<40> wiz_gcode; \
+          wiz_gcode.setf_P(PSTR("M1004H%iB%iS%i"), (int)ui.material_preset[M].hotend_temp, (int)ui.material_preset[M].bed_temp, M + 1); \
+          queue.inject(wiz_gcode); \
+          ui.return_to_status(); \
+        }
+    #else
+      #define _GEN_MESH_WIZARD_FN(M) \
+        static void _lcd_ubl_mesh_wizard_##M() { \
+          TERN_(HAS_MESH_STORAGE, ubl_storage_slot = M + 1;) \
+          MString<40> wiz_gcode; \
+          wiz_gcode.setf_P(PSTR("M1004H%iS%i"), (int)ui.material_preset[M].hotend_temp, M + 1); \
+          queue.inject(wiz_gcode); \
+          ui.return_to_status(); \
+        }
+    #endif
+    REPEAT(PREHEAT_COUNT, _GEN_MESH_WIZARD_FN)
+    #undef _GEN_MESH_WIZARD_FN
+  #endif
 #endif
 
 static int16_t custom_hotend_temp = 150,
@@ -670,26 +697,28 @@ void _menu_ubl_tools() {
   }
 
   void _menu_ubl_mesh_wizard() {
-    #if HAS_MESH_STORAGE
-      const int16_t total_slots = settings.calc_num_meshes();
-    #endif
-
     START_MENU();
     BACK_ITEM(MSG_UBL_LEVELING);
 
-    #if HAS_HOTEND
-      EDIT_ITEM(int3, MSG_UBL_HOTEND_TEMP_CUSTOM, &custom_hotend_temp, HEATER_0_MINTEMP + 20, thermalManager.hotend_max_target(0));
-    #endif
+    #if HAS_PREHEAT
+      // Material profiles: preheat happens via the selected profile
+      REPEAT(PREHEAT_COUNT, WIZARD_MESH_ITEM)
+    #else
+      #if HAS_HOTEND
+        EDIT_ITEM(int3, MSG_UBL_HOTEND_TEMP_CUSTOM, &custom_hotend_temp, HEATER_0_MINTEMP + 20, thermalManager.hotend_max_target(0));
+      #endif
 
-    #if HAS_HEATED_BED
-      EDIT_ITEM(int3, MSG_UBL_BED_TEMP_CUSTOM, &custom_bed_temp, BED_MINTEMP + 20, BED_MAX_TARGET);
-    #endif
+      #if HAS_HEATED_BED
+        EDIT_ITEM(int3, MSG_UBL_BED_TEMP_CUSTOM, &custom_bed_temp, BED_MINTEMP + 20, BED_MAX_TARGET);
+      #endif
 
-    #if HAS_MESH_STORAGE
-      EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, total_slots);
-    #endif
+      #if HAS_MESH_STORAGE
+        const int16_t total_slots = settings.calc_num_meshes();
+        EDIT_ITEM(int3, MSG_UBL_STORAGE_SLOT, &ubl_storage_slot, 0, total_slots);
+      #endif
 
-    ACTION_ITEM(MSG_UBL_MESH_WIZARD, _lcd_ubl_mesh_wizard);
+      ACTION_ITEM(MSG_UBL_MESH_WIZARD, _lcd_ubl_mesh_wizard);
+    #endif // HAS_PREHEAT
 
     #if ENABLED(G26_MESH_VALIDATION)
       SUBMENU(MSG_UBL_VALIDATE_MESH_MENU, _lcd_ubl_validate_mesh);
